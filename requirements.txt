@@ -1,1 +1,2 @@
 psycopg2-binary
+Flask==2.3.2

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اضافه کردن معلم</title>
+</head>
+<body>
+    <h1>اضافه کردن معلم</h1>
+    <form method="POST">
+        <label for="national_code">کد ملی:</label>
+        <input type="text" id="national_code" name="national_code" required><br>
+        <label for="password">رمز عبور:</label>
+        <input type="password" id="password" name="password" required><br>
+        <label for="first_name">نام:</label>
+        <input type="text" id="first_name" name="first_name"><br>
+        <label for="last_name">نام خانوادگی:</label>
+        <input type="text" id="last_name" name="last_name"><br>
+        <label for="category">دسته معلم:</label>
+        <input type="text" id="category" name="category" required><br>
+        <button type="submit">ثبت معلم</button>
+    </form>
+    <a href="{{ url_for('index') }}">بازگشت به صفحه اصلی</a>
+</body>
+</html>

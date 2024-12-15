@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اضافه کردن دانش‌آموز</title>
+</head>
+<body>
+    <h1>اضافه کردن دانش‌آموز</h1>
+    <form method="POST">
+        <label for="national_code">کد ملی:</label>
+        <input type="text" id="national_code" name="national_code" required><br>
+        <label for="password">رمز عبور:</label>
+        <input type="password" id="password" name="password" required><br>
+        <button type="submit">ثبت دانش‌آموز</button>
+    </form>
+    <a href="{{ url_for('index') }}">بازگشت به صفحه اصلی</a>
+</body>
+</html>

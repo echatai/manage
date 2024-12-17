@@ -21,7 +21,7 @@ except Exception as e:
     raise
 
 # مراحل مکالمه
-ADMIN_LOGIN, MAIN_MENU, MANAGE_STUDENTS, MANAGE_TEACHERS, MANAGE_CATEGORIES, ADD_CATEGORY = range(6)
+ADMIN_LOGIN, MAIN_MENU, MANAGE_STUDENTS, MANAGE_TEACHERS, MANAGE_CATEGORIES, ADD_CATEGORY, ADD_STUDENT, ADD_TEACHER = range(8)
 
 # اطلاعات ادمین
 ADMIN_CREDENTIALS = {
@@ -38,6 +38,16 @@ MAIN_MENU_KEYBOARD = [
 CATEGORY_MENU_KEYBOARD = [
     ["افزودن دسته", "ویرایش دسته"],
     ["حذف دسته", "بازگشت به منوی اصلی"]
+]
+
+STUDENT_MENU_KEYBOARD = [
+    ["افزودن دانش‌آموز", "ویرایش دانش‌آموز"],
+    ["حذف دانش‌آموز", "بازگشت به منوی اصلی"]
+]
+
+TEACHER_MENU_KEYBOARD = [
+    ["افزودن معلم", "ویرایش معلم"],
+    ["حذف معلم", "بازگشت به منوی اصلی"]
 ]
 
 # شروع ربات
@@ -69,7 +79,19 @@ async def admin_login(update: Update, context: CallbackContext):
 # منوی اصلی
 async def main_menu(update: Update, context: CallbackContext):
     text = update.message.text
-    if text == "مدیریت دسته‌ها":
+    if text == "مدیریت دانش‌آموزان":
+        await update.message.reply_text(
+            "لطفاً یکی از عملیات زیر را انتخاب کنید:",
+            reply_markup=ReplyKeyboardMarkup(STUDENT_MENU_KEYBOARD, one_time_keyboard=True)
+        )
+        return MANAGE_STUDENTS
+    elif text == "مدیریت معلمان":
+        await update.message.reply_text(
+            "لطفاً یکی از عملیات زیر را انتخاب کنید:",
+            reply_markup=ReplyKeyboardMarkup(TEACHER_MENU_KEYBOARD, one_time_keyboard=True)
+        )
+        return MANAGE_TEACHERS
+    elif text == "مدیریت دسته‌ها":
         await update.message.reply_text(
             "لطفاً یکی از عملیات زیر را انتخاب کنید:",
             reply_markup=ReplyKeyboardMarkup(CATEGORY_MENU_KEYBOARD, one_time_keyboard=True)
@@ -100,7 +122,6 @@ async def manage_categories(update: Update, context: CallbackContext):
         )
         return MANAGE_CATEGORIES
 
-# افزودن دسته
 async def add_category(update: Update, context: CallbackContext):
     category_name = update.message.text.strip()
     if not category_name:
@@ -109,16 +130,45 @@ async def add_category(update: Update, context: CallbackContext):
     try:
         cursor.execute("INSERT INTO categories (name) VALUES (%s)", (category_name,))
         conn.commit()
-        logger.info(f"دسته جدید '{category_name}' توسط کاربر {update.effective_user.id} اضافه شد.")
         await update.message.reply_text(
             f"دسته '{category_name}' با موفقیت اضافه شد!",
             reply_markup=ReplyKeyboardMarkup(CATEGORY_MENU_KEYBOARD, one_time_keyboard=True)
         )
         return MANAGE_CATEGORIES
     except Exception as e:
-        logger.error(f"خطا در افزودن دسته '{category_name}': {e}")
+        logger.error(f"خطا در افزودن دسته: {e}")
         await update.message.reply_text("خطا در افزودن دسته. لطفاً دوباره تلاش کنید.")
         return ADD_CATEGORY
+
+# مدیریت دانش‌آموزان
+async def manage_students(update: Update, context: CallbackContext):
+    text = update.message.text
+    if text == "افزودن دانش‌آموز":
+        await update.message.reply_text("لطفاً اطلاعات دانش‌آموز (کد ملی:رمز عبور) را وارد کنید:")
+        return ADD_STUDENT
+    elif text == "بازگشت به منوی اصلی":
+        return await main_menu(update, context)
+    else:
+        await update.message.reply_text(
+            "گزینه نامعتبر. لطفاً یکی از عملیات زیر را انتخاب کنید:",
+            reply_markup=ReplyKeyboardMarkup(STUDENT_MENU_KEYBOARD, one_time_keyboard=True)
+        )
+        return MANAGE_STUDENTS
+
+# مدیریت معلمان
+async def manage_teachers(update: Update, context: CallbackContext):
+    text = update.message.text
+    if text == "افزودن معلم":
+        await update.message.reply_text("لطفاً اطلاعات معلم (کد ملی:رمز عبور:دسته‌بندی) را وارد کنید:")
+        return ADD_TEACHER
+    elif text == "بازگشت به منوی اصلی":
+        return await main_menu(update, context)
+    else:
+        await update.message.reply_text(
+            "گزینه نامعتبر. لطفاً یکی از عملیات زیر را انتخاب کنید:",
+            reply_markup=ReplyKeyboardMarkup(TEACHER_MENU_KEYBOARD, one_time_keyboard=True)
+        )
+        return MANAGE_TEACHERS
 
 # مسیر مکالمه
 conv_handler = ConversationHandler(
@@ -128,6 +178,8 @@ conv_handler = ConversationHandler(
         MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu)],
         MANAGE_CATEGORIES: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_categories)],
         ADD_CATEGORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_category)],
+        MANAGE_STUDENTS: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_students)],
+        MANAGE_TEACHERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_teachers)],
     },
     fallbacks=[CommandHandler("start", start)]
 )

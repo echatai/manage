@@ -378,7 +378,7 @@ async def confirm_edit_teacher(update: Update, context: CallbackContext):
 
 # آغاز ربات
 if __name__ == "__main__":
-    create_tables_if_not_exists()
+    
 
     application = ApplicationBuilder().token("8097014995:AAFdMtovZfyW0YkbycFXS_SVssBG5pRtsk4").build()
 

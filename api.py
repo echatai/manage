@@ -22,6 +22,10 @@ except Exception as e:
 
 # بررسی و ایجاد جداول و ستون‌ها در دیتابیس در صورت عدم وجود
 def create_tables_if_not_exists():
+     # حذف جداول اگر موجود باشند
+        cursor.execute("DROP TABLE IF EXISTS students, teachers, categories CASCADE;")
+        conn.commit()
+        logger.info("جداول موجود حذف شدند.")
     # ایجاد جدول دانش‌آموزان در صورت عدم وجود
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS students (

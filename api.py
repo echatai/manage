@@ -18,9 +18,10 @@ try:
     logger.info("اتصال به دیتابیس برقرار شد.")
 except Exception as e:
     logger.error(f"خطا در اتصال به دیتابیس: {e}")
+    raise
 
 # مراحل مکالمه
-ADMIN_LOGIN, MAIN_MENU, MANAGE_STUDENTS, MANAGE_TEACHERS, MANAGE_CATEGORIES = range(5)
+ADMIN_LOGIN, MAIN_MENU, MANAGE_STUDENTS, MANAGE_TEACHERS, MANAGE_CATEGORIES, ADD_CATEGORY = range(6)
 
 # اطلاعات ادمین
 ADMIN_CREDENTIALS = {
@@ -34,6 +35,11 @@ MAIN_MENU_KEYBOARD = [
     ["مدیریت دسته‌ها", "خروج"]
 ]
 
+CATEGORY_MENU_KEYBOARD = [
+    ["افزودن دسته", "ویرایش دسته"],
+    ["حذف دسته", "بازگشت به منوی اصلی"]
+]
+
 # شروع ربات
 async def start(update: Update, context: CallbackContext):
     logger.info(f"کاربر {update.effective_user.id} /start را اجرا کرد.")
@@ -45,7 +51,6 @@ async def start(update: Update, context: CallbackContext):
 # ورود ادمین
 async def admin_login(update: Update, context: CallbackContext):
     try:
-        logger.info(f"ورودی دریافت شده برای ورود ادمین: {update.message.text}")
         username, password = update.message.text.split(":")
         if username == ADMIN_CREDENTIALS["username"] and bcrypt.checkpw(password.encode(), ADMIN_CREDENTIALS["password"].encode()):
             logger.info(f"ورود موفق برای کاربر {update.effective_user.id}.")
@@ -55,7 +60,6 @@ async def admin_login(update: Update, context: CallbackContext):
             )
             return MAIN_MENU
         else:
-            logger.warning(f"ورود ناموفق برای کاربر {update.effective_user.id}.")
             await update.message.reply_text("نام کاربری یا رمز عبور اشتباه است. لطفاً دوباره تلاش کنید.")
     except ValueError as e:
         logger.error(f"خطای فرمت ورودی: {e}")
@@ -65,99 +69,56 @@ async def admin_login(update: Update, context: CallbackContext):
 # منوی اصلی
 async def main_menu(update: Update, context: CallbackContext):
     text = update.message.text
-    logger.info(f"ورودی در منوی اصلی از کاربر {update.effective_user.id}: {text}")
-    if text == "مدیریت دانش‌آموزان":
-        return await manage_students_menu(update, context)
-    elif text == "مدیریت معلمان":
-        return await manage_teachers_menu(update, context)
-    elif text == "مدیریت دسته‌ها":
-        return await manage_categories_menu(update, context)
+    if text == "مدیریت دسته‌ها":
+        await update.message.reply_text(
+            "لطفاً یکی از عملیات زیر را انتخاب کنید:",
+            reply_markup=ReplyKeyboardMarkup(CATEGORY_MENU_KEYBOARD, one_time_keyboard=True)
+        )
+        return MANAGE_CATEGORIES
     elif text == "خروج":
-        logger.info(f"کاربر {update.effective_user.id} از ربات خارج شد.")
         await update.message.reply_text("خداحافظ!")
         return ConversationHandler.END
     else:
-        logger.warning(f"گزینه نامعتبر در منوی اصلی: {text}")
         await update.message.reply_text(
-            "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
+            "گزینه نامعتبر. لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
             reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, one_time_keyboard=True)
         )
         return MAIN_MENU
 
-# مدیریت دانش‌آموزان
-async def manage_students_menu(update: Update, context: CallbackContext):
-    logger.info(f"ورود به منوی مدیریت دانش‌آموزان توسط کاربر {update.effective_user.id}")
-    await update.message.reply_text(
-        "لطفاً یکی از عملیات زیر را انتخاب کنید:",
-        reply_markup=ReplyKeyboardMarkup([
-            ["افزودن دانش‌آموز", "ویرایش دانش‌آموز"],
-            ["حذف دانش‌آموز", "بازگشت به منوی اصلی"]
-        ], one_time_keyboard=True)
-    )
-    return MANAGE_STUDENTS
-
-async def manage_students(update: Update, context: CallbackContext):
-    text = update.message.text
-    logger.info(f"عملیات در مدیریت دانش‌آموزان: {text} توسط کاربر {update.effective_user.id}")
-    if text == "افزودن دانش‌آموز":
-        await update.message.reply_text("لطفاً اطلاعات دانش‌آموز را به شکل زیر وارد کنید:\n\nکد ملی:رمز عبور")
-    elif text == "ویرایش دانش‌آموز":
-        await update.message.reply_text("لطفاً کد ملی دانش‌آموزی که می‌خواهید ویرایش کنید را وارد کنید:")
-    elif text == "حذف دانش‌آموز":
-        await update.message.reply_text("لطفاً کد ملی دانش‌آموزی که می‌خواهید حذف کنید را وارد کنید:")
-    elif text == "بازگشت به منوی اصلی":
-        return await main_menu(update, context)
-    return MANAGE_STUDENTS
-
-# مدیریت معلمان
-async def manage_teachers_menu(update: Update, context: CallbackContext):
-    logger.info(f"ورود به منوی مدیریت معلمان توسط کاربر {update.effective_user.id}")
-    await update.message.reply_text(
-        "لطفاً یکی از عملیات زیر را انتخاب کنید:",
-        reply_markup=ReplyKeyboardMarkup([
-            ["افزودن معلم", "ویرایش معلم"],
-            ["حذف معلم", "بازگشت به منوی اصلی"]
-        ], one_time_keyboard=True)
-    )
-    return MANAGE_TEACHERS
-
-async def manage_teachers(update: Update, context: CallbackContext):
-    text = update.message.text
-    logger.info(f"عملیات در مدیریت معلمان: {text} توسط کاربر {update.effective_user.id}")
-    if text == "افزودن معلم":
-        await update.message.reply_text("لطفاً اطلاعات معلم را به شکل زیر وارد کنید:\n\nکد ملی:رمز عبور:دسته‌بندی")
-    elif text == "ویرایش معلم":
-        await update.message.reply_text("لطفاً کد ملی معلمی که می‌خواهید ویرایش کنید را وارد کنید:")
-    elif text == "حذف معلم":
-        await update.message.reply_text("لطفاً کد ملی معلمی که می‌خواهید حذف کنید را وارد کنید:")
-    elif text == "بازگشت به منوی اصلی":
-        return await main_menu(update, context)
-    return MANAGE_TEACHERS
-
 # مدیریت دسته‌ها
-async def manage_categories_menu(update: Update, context: CallbackContext):
-    logger.info(f"ورود به منوی مدیریت دسته‌ها توسط کاربر {update.effective_user.id}")
-    await update.message.reply_text(
-        "لطفاً یکی از عملیات زیر را انتخاب کنید:",
-        reply_markup=ReplyKeyboardMarkup([
-            ["افزودن دسته", "ویرایش دسته"],
-            ["حذف دسته", "بازگشت به منوی اصلی"]
-        ], one_time_keyboard=True)
-    )
-    return MANAGE_CATEGORIES
-
 async def manage_categories(update: Update, context: CallbackContext):
     text = update.message.text
-    logger.info(f"عملیات در مدیریت دسته‌ها: {text} توسط کاربر {update.effective_user.id}")
     if text == "افزودن دسته":
         await update.message.reply_text("لطفاً نام دسته‌ای که می‌خواهید اضافه کنید را وارد کنید:")
-    elif text == "ویرایش دسته":
-        await update.message.reply_text("لطفاً نام دسته‌ای که می‌خواهید ویرایش کنید را وارد کنید:")
-    elif text == "حذف دسته":
-        await update.message.reply_text("لطفاً نام دسته‌ای که می‌خواهید حذف کنید را وارد کنید:")
+        return ADD_CATEGORY
     elif text == "بازگشت به منوی اصلی":
         return await main_menu(update, context)
-    return MANAGE_CATEGORIES
+    else:
+        await update.message.reply_text(
+            "گزینه نامعتبر. لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
+            reply_markup=ReplyKeyboardMarkup(CATEGORY_MENU_KEYBOARD, one_time_keyboard=True)
+        )
+        return MANAGE_CATEGORIES
+
+# افزودن دسته
+async def add_category(update: Update, context: CallbackContext):
+    category_name = update.message.text.strip()
+    if not category_name:
+        await update.message.reply_text("نام دسته نمی‌تواند خالی باشد. لطفاً دوباره وارد کنید:")
+        return ADD_CATEGORY
+    try:
+        cursor.execute("INSERT INTO categories (name) VALUES (%s)", (category_name,))
+        conn.commit()
+        logger.info(f"دسته جدید '{category_name}' توسط کاربر {update.effective_user.id} اضافه شد.")
+        await update.message.reply_text(
+            f"دسته '{category_name}' با موفقیت اضافه شد!",
+            reply_markup=ReplyKeyboardMarkup(CATEGORY_MENU_KEYBOARD, one_time_keyboard=True)
+        )
+        return MANAGE_CATEGORIES
+    except Exception as e:
+        logger.error(f"خطا در افزودن دسته '{category_name}': {e}")
+        await update.message.reply_text("خطا در افزودن دسته. لطفاً دوباره تلاش کنید.")
+        return ADD_CATEGORY
 
 # مسیر مکالمه
 conv_handler = ConversationHandler(
@@ -165,9 +126,8 @@ conv_handler = ConversationHandler(
     states={
         ADMIN_LOGIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_login)],
         MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu)],
-        MANAGE_STUDENTS: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_students)],
-        MANAGE_TEACHERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_teachers)],
         MANAGE_CATEGORIES: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_categories)],
+        ADD_CATEGORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_category)],
     },
     fallbacks=[CommandHandler("start", start)]
 )

@@ -68,10 +68,8 @@ def create_tables_if_not_exists():
         logger.error(f"خطا در ایجاد جداول: {e}")
         conn.rollback()
 
-
-
 # مراحل مکالمه
-ADMIN_LOGIN, MAIN_MENU, MANAGE_STUDENTS, MANAGE_TEACHERS, MANAGE_CATEGORIES, ADD_CATEGORY, ADD_STUDENT, ADD_TEACHER, EDIT_STUDENT, EDIT_TEACHER = range(10)
+ADMIN_LOGIN, MAIN_MENU, MANAGE_STUDENTS, MANAGE_TEACHERS, MANAGE_CATEGORIES, ADD_CATEGORY, ADD_STUDENT, ADD_TEACHER, EDIT_STUDENT, EDIT_TEACHER, DELETE_STUDENT, DELETE_TEACHER, EDIT_STUDENT_CONFIRM, EDIT_TEACHER_CONFIRM = range(14)
 
 # اطلاعات ادمین
 ADMIN_CREDENTIALS = {
@@ -196,6 +194,8 @@ async def manage_students(update: Update, context: CallbackContext):
     if text == "افزودن دانش‌آموز":
         await update.message.reply_text("لطفاً اطلاعات دانش‌آموز (کد ملی:رمز عبور:نام:نام خانوادگی) را وارد کنید:")
         return ADD_STUDENT
+    elif text == "حذف دانش‌آموز":
+        return await delete_student(update, context)
     elif text == "بازگشت به منوی اصلی":
         return await main_menu(update, context)
     else:
@@ -205,23 +205,33 @@ async def manage_students(update: Update, context: CallbackContext):
         )
         return MANAGE_STUDENTS
 
-async def add_student(update: Update, context: CallbackContext):
-    try:
-        national_code, password, first_name, last_name = update.message.text.split(":")
-        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
-        cursor.execute("""
-            INSERT INTO students (national_code, password_hash, first_name, last_name) 
-            VALUES (%s, %s, %s, %s)
-        """, (national_code, password_hash, first_name, last_name))
-        conn.commit()
-
-        await update.message.reply_text(f"دانش‌آموز {first_name} {last_name} با کد ملی {national_code} اضافه شد!")
+# حذف دانش‌آموز
+async def delete_student(update: Update, context: CallbackContext):
+    cursor.execute("SELECT id, first_name, last_name FROM students")
+    students = cursor.fetchall()
+    if not students:
+        await update.message.reply_text("هیچ دانش‌آموزی برای حذف وجود ندارد.")
         return MANAGE_STUDENTS
+    
+    student_list = "\n".join([f"{student[0]}: {student[1]} {student[2]}" for student in students])
+    await update.message.reply_text(f"لیست دانش‌آموزان:\n{student_list}\n\nلطفاً شناسه دانش‌آموز مورد نظر را وارد کنید:")
+    return DELETE_STUDENT
+
+async def confirm_delete_student(update: Update, context: CallbackContext):
+    student_id = update.message.text.strip()
+    try:
+        cursor.execute("SELECT id FROM students WHERE id = %s", (student_id,))
+        student = cursor.fetchone()
+        if student:
+            cursor.execute("DELETE FROM students WHERE id = %s", (student_id,))
+            conn.commit()
+            await update.message.reply_text(f"دانش‌آموز با شناسه {student_id} با موفقیت حذف شد!")
+        else:
+            await update.message.reply_text("شناسه وارد شده معتبر نیست.")
     except Exception as e:
-        logger.error(f"خطا در افزودن دانش‌آموز: {e}")
-        await update.message.reply_text("خطا در افزودن دانش‌آموز. لطفاً دوباره تلاش کنید.")
-        return ADD_STUDENT
+        logger.error(f"خطا در حذف دانش‌آموز: {e}")
+        await update.message.reply_text("خطا در حذف دانش‌آموز. لطفاً دوباره تلاش کنید.")
+    return MANAGE_STUDENTS
 
 # مدیریت معلمان
 async def manage_teachers(update: Update, context: CallbackContext):
@@ -229,6 +239,8 @@ async def manage_teachers(update: Update, context: CallbackContext):
     if text == "افزودن معلم":
         await update.message.reply_text("لطفاً اطلاعات معلم (کد ملی:رمز عبور:نام:نام خانوادگی:دسته‌بندی) را وارد کنید:")
         return ADD_TEACHER
+    elif text == "حذف معلم":
+        return await delete_teacher(update, context)
     elif text == "بازگشت به منوی اصلی":
         return await main_menu(update, context)
     else:
@@ -238,44 +250,159 @@ async def manage_teachers(update: Update, context: CallbackContext):
         )
         return MANAGE_TEACHERS
 
-async def add_teacher(update: Update, context: CallbackContext):
-    try:
-        national_code, password, first_name, last_name, category = update.message.text.split(":")
-        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
-        cursor.execute("""
-            INSERT INTO teachers (national_code, password_hash, first_name, last_name, category) 
-            VALUES (%s, %s, %s, %s, %s)
-        """, (national_code, password_hash, first_name, last_name, category))
-        conn.commit()
-
-        await update.message.reply_text(f"معلم {first_name} {last_name} با کد ملی {national_code} و دسته '{category}' اضافه شد!")
+# حذف معلم
+async def delete_teacher(update: Update, context: CallbackContext):
+    cursor.execute("SELECT id, first_name, last_name FROM teachers")
+    teachers = cursor.fetchall()
+    if not teachers:
+        await update.message.reply_text("هیچ معلمی برای حذف وجود ندارد.")
         return MANAGE_TEACHERS
+    
+    teacher_list = "\n".join([f"{teacher[0]}: {teacher[1]} {teacher[2]}" for teacher in teachers])
+    await update.message.reply_text(f"لیست معلمان:\n{teacher_list}\n\nلطفاً شناسه معلم مورد نظر را وارد کنید:")
+    return DELETE_TEACHER
+
+async def confirm_delete_teacher(update: Update, context: CallbackContext):
+    teacher_id = update.message.text.strip()
+    try:
+        cursor.execute("SELECT id FROM teachers WHERE id = %s", (teacher_id,))
+        teacher = cursor.fetchone()
+        if teacher:
+            cursor.execute("DELETE FROM teachers WHERE id = %s", (teacher_id,))
+            conn.commit()
+            await update.message.reply_text(f"معلم با شناسه {teacher_id} با موفقیت حذف شد!")
+        else:
+            await update.message.reply_text("شناسه وارد شده معتبر نیست.")
+    except Exception as e:
+        logger.error(f"خطا در حذف معلم: {e}")
+        await update.message.reply_text("خطا در حذف معلم. لطفاً دوباره تلاش کنید.")
+    return MANAGE_TEACHERS
+
+# افزودن دانش‌آموز
+async def add_student(update: Update, context: CallbackContext):
+    student_info = update.message.text.strip().split(":")
+    if len(student_info) != 4:
+        await update.message.reply_text("فرمت ورودی اشتباه است. لطفاً به شکل کد ملی:رمز عبور:نام:نام خانوادگی وارد کنید.")
+        return ADD_STUDENT
+
+    national_code, password, first_name, last_name = student_info
+    try:
+        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        cursor.execute(
+            "INSERT INTO students (national_code, password_hash, first_name, last_name) VALUES (%s, %s, %s, %s)",
+            (national_code, password_hash, first_name, last_name)
+        )
+        conn.commit()
+        await update.message.reply_text(f"دانش‌آموز '{first_name} {last_name}' با موفقیت اضافه شد!")
+    except Exception as e:
+        logger.error(f"خطا در افزودن دانش‌آموز: {e}")
+        await update.message.reply_text("خطا در افزودن دانش‌آموز. لطفاً دوباره تلاش کنید.")
+    return MANAGE_STUDENTS
+
+# افزودن معلم
+async def add_teacher(update: Update, context: CallbackContext):
+    teacher_info = update.message.text.strip().split(":")
+    if len(teacher_info) != 5:
+        await update.message.reply_text("فرمت ورودی اشتباه است. لطفاً به شکل کد ملی:رمز عبور:نام:نام خانوادگی:دسته‌بندی وارد کنید.")
+        return ADD_TEACHER
+
+    national_code, password, first_name, last_name, category = teacher_info
+    try:
+        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        cursor.execute(
+            "INSERT INTO teachers (national_code, password_hash, first_name, last_name, category) VALUES (%s, %s, %s, %s, %s)",
+            (national_code, password_hash, first_name, last_name, category)
+        )
+        conn.commit()
+        await update.message.reply_text(f"معلم '{first_name} {last_name}' با موفقیت اضافه شد!")
     except Exception as e:
         logger.error(f"خطا در افزودن معلم: {e}")
         await update.message.reply_text("خطا در افزودن معلم. لطفاً دوباره تلاش کنید.")
-        return ADD_TEACHER
+    return MANAGE_TEACHERS
 
-# مسیر مکالمه
-conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", start)],
-    states={
-        ADMIN_LOGIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_login)],
-        MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu)],
-        MANAGE_CATEGORIES: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_categories)],
-        ADD_CATEGORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_category)],
-        MANAGE_STUDENTS: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_students)],
-        ADD_STUDENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_student)],
-        MANAGE_TEACHERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_teachers)],
-        ADD_TEACHER: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_teacher)],
-    },
-    fallbacks=[CommandHandler("start", start)]
-)
+# انجام عملیات ویرایش دانش‌آموز و معلم
+async def edit_student(update: Update, context: CallbackContext):
+    cursor.execute("SELECT id, first_name, last_name FROM students")
+    students = cursor.fetchall()
+    if not students:
+        await update.message.reply_text("هیچ دانش‌آموزی برای ویرایش وجود ندارد.")
+        return MANAGE_STUDENTS
+    
+    student_list = "\n".join([f"{student[0]}: {student[1]} {student[2]}" for student in students])
+    await update.message.reply_text(f"لیست دانش‌آموزان:\n{student_list}\n\nلطفاً شناسه دانش‌آموز مورد نظر را وارد کنید:")
+    return EDIT_STUDENT
 
-# ساخت اپلیکیشن و افزودن هندلر
-application = ApplicationBuilder().token("8097014995:AAFdMtovZfyW0YkbycFXS_SVssBG5pRtsk4").build()
-application.add_handler(conv_handler)
+async def confirm_edit_student(update: Update, context: CallbackContext):
+    student_id = update.message.text.strip()
+    try:
+        cursor.execute("SELECT * FROM students WHERE id = %s", (student_id,))
+        student = cursor.fetchone()
+        if student:
+            context.user_data['student_id'] = student_id
+            await update.message.reply_text(f"لطفاً اطلاعات جدید دانش‌آموز (کد ملی:رمز عبور:نام:نام خانوادگی) را وارد کنید:")
+            return EDIT_STUDENT_CONFIRM
+        else:
+            await update.message.reply_text("شناسه وارد شده معتبر نیست.")
+    except Exception as e:
+        logger.error(f"خطا در ویرایش دانش‌آموز: {e}")
+        await update.message.reply_text("خطا در ویرایش دانش‌آموز. لطفاً دوباره تلاش کنید.")
+    return MANAGE_STUDENTS
 
-# اجرای ربات
+# ویرایش معلم
+async def edit_teacher(update: Update, context: CallbackContext):
+    cursor.execute("SELECT id, first_name, last_name FROM teachers")
+    teachers = cursor.fetchall()
+    if not teachers:
+        await update.message.reply_text("هیچ معلمی برای ویرایش وجود ندارد.")
+        return MANAGE_TEACHERS
+    
+    teacher_list = "\n".join([f"{teacher[0]}: {teacher[1]} {teacher[2]}" for teacher in teachers])
+    await update.message.reply_text(f"لیست معلمان:\n{teacher_list}\n\nلطفاً شناسه معلم مورد نظر را وارد کنید:")
+    return EDIT_TEACHER
+
+async def confirm_edit_teacher(update: Update, context: CallbackContext):
+    teacher_id = update.message.text.strip()
+    try:
+        cursor.execute("SELECT * FROM teachers WHERE id = %s", (teacher_id,))
+        teacher = cursor.fetchone()
+        if teacher:
+            context.user_data['teacher_id'] = teacher_id
+            await update.message.reply_text(f"لطفاً اطلاعات جدید معلم (کد ملی:رمز عبور:نام:نام خانوادگی:دسته‌بندی) را وارد کنید:")
+            return EDIT_TEACHER_CONFIRM
+        else:
+            await update.message.reply_text("شناسه وارد شده معتبر نیست.")
+    except Exception as e:
+        logger.error(f"خطا در ویرایش معلم: {e}")
+        await update.message.reply_text("خطا در ویرایش معلم. لطفاً دوباره تلاش کنید.")
+    return MANAGE_TEACHERS
+
+# آغاز ربات
 if __name__ == "__main__":
+    create_tables_if_not_exists()
+
+    application = ApplicationBuilder().token("8097014995:AAFdMtovZfyW0YkbycFXS_SVssBG5pRtsk4").build()
+
+    # تنظیمات handler‌ها
+    conversation_handler = ConversationHandler(
+        entry_points=[CommandHandler("start", start)],
+        states={
+            ADMIN_LOGIN: [MessageHandler(filters.TEXT, admin_login)],
+            MAIN_MENU: [MessageHandler(filters.TEXT, main_menu)],
+            MANAGE_STUDENTS: [MessageHandler(filters.TEXT, manage_students)],
+            MANAGE_TEACHERS: [MessageHandler(filters.TEXT, manage_teachers)],
+            MANAGE_CATEGORIES: [MessageHandler(filters.TEXT, manage_categories)],
+            ADD_CATEGORY: [MessageHandler(filters.TEXT, add_category)],
+            ADD_STUDENT: [MessageHandler(filters.TEXT, add_student)],
+            ADD_TEACHER: [MessageHandler(filters.TEXT, add_teacher)],
+            DELETE_STUDENT: [MessageHandler(filters.TEXT, confirm_delete_student)],
+            DELETE_TEACHER: [MessageHandler(filters.TEXT, confirm_delete_teacher)],
+            EDIT_STUDENT: [MessageHandler(filters.TEXT, edit_student)],
+            EDIT_TEACHER: [MessageHandler(filters.TEXT, edit_teacher)],
+            EDIT_STUDENT_CONFIRM: [MessageHandler(filters.TEXT, confirm_edit_student)],
+            EDIT_TEACHER_CONFIRM: [MessageHandler(filters.TEXT, confirm_edit_teacher)],
+        },
+        fallbacks=[],
+    )
+
+    application.add_handler(conversation_handler)
     application.run_polling()

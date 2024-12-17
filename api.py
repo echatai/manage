@@ -22,46 +22,51 @@ except Exception as e:
 
 # بررسی و ایجاد جداول و ستون‌ها در دیتابیس در صورت عدم وجود
 def create_tables_if_not_exists():
-     # حذف جداول اگر موجود باشند
+    try:
+        # حذف جداول اگر موجود باشند
         cursor.execute("DROP TABLE IF EXISTS students, teachers, categories CASCADE;")
         conn.commit()
         logger.info("جداول موجود حذف شدند.")
-    # ایجاد جدول دانش‌آموزان در صورت عدم وجود
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS students (
-            id SERIAL PRIMARY KEY,
-            national_code VARCHAR(20) UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            first_name VARCHAR(100) NOT NULL,
-            last_name VARCHAR(100) NOT NULL,
-            telegram_id BIGINT UNIQUE
-        );
-    """)
 
-    # ایجاد جدول معلمان در صورت عدم وجود
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS teachers (
-            id SERIAL PRIMARY KEY,
-            national_code VARCHAR(20) UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            first_name VARCHAR(100) NOT NULL,
-            last_name VARCHAR(100) NOT NULL,
-            category VARCHAR(50) NOT NULL,
-            telegram_username VARCHAR(100) UNIQUE NOT NULL
-        );
-    """)
+        # ایجاد جدول دانش‌آموزان
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS students (
+                id SERIAL PRIMARY KEY,
+                national_code VARCHAR(20) UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                first_name VARCHAR(100) NOT NULL,
+                last_name VARCHAR(100) NOT NULL,
+                telegram_id BIGINT UNIQUE
+            );
+        """)
 
-    # ایجاد جدول دسته‌ها در صورت عدم وجود
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS categories (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) UNIQUE NOT NULL
-        );
-    """)
+        # ایجاد جدول معلمان
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS teachers (
+                id SERIAL PRIMARY KEY,
+                national_code VARCHAR(20) UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                first_name VARCHAR(100) NOT NULL,
+                last_name VARCHAR(100) NOT NULL,
+                category VARCHAR(50) NOT NULL,
+                telegram_username VARCHAR(100) UNIQUE NOT NULL
+            );
+        """)
 
-    # اعمال تغییرات به دیتابیس
-    conn.commit()
-    logger.info("جداول و ستون‌های مورد نیاز ایجاد شدند.")
+        # ایجاد جدول دسته‌ها
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS categories (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL
+            );
+        """)
+
+        # اعمال تغییرات به دیتابیس
+        conn.commit()
+        logger.info("جداول و ستون‌های مورد نیاز ایجاد شدند.")
+    except Exception as e:
+        logger.error(f"خطا در ایجاد جداول: {e}")
+        conn.rollback()
 
 # فراخوانی تابع برای ایجاد جداول در صورت عدم وجود
 create_tables_if_not_exists()  # فراخوانی تابع در ابتدای اجرا

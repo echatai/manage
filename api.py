@@ -20,6 +20,48 @@ except Exception as e:
     logger.error(f"خطا در اتصال به دیتابیس: {e}")
     raise
 
+# بررسی و ایجاد جداول و ستون‌ها در دیتابیس در صورت عدم وجود
+def create_tables_if_not_exists():
+    # ایجاد جدول دانش‌آموزان در صورت عدم وجود
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS students (
+            id SERIAL PRIMARY KEY,
+            national_code VARCHAR(20) UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            first_name VARCHAR(100) NOT NULL,
+            last_name VARCHAR(100) NOT NULL,
+            telegram_id BIGINT UNIQUE
+        );
+    """)
+
+    # ایجاد جدول معلمان در صورت عدم وجود
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS teachers (
+            id SERIAL PRIMARY KEY,
+            national_code VARCHAR(20) UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            first_name VARCHAR(100) NOT NULL,
+            last_name VARCHAR(100) NOT NULL,
+            category VARCHAR(50) NOT NULL,
+            telegram_username VARCHAR(100) UNIQUE NOT NULL
+        );
+    """)
+
+    # ایجاد جدول دسته‌ها در صورت عدم وجود
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categories (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) UNIQUE NOT NULL
+        );
+    """)
+
+    # اعمال تغییرات به دیتابیس
+    conn.commit()
+    logger.info("جداول و ستون‌های مورد نیاز ایجاد شدند.")
+
+# فراخوانی تابع برای ایجاد جداول در صورت عدم وجود
+create_tables_if_not_exists()
+
 # مراحل مکالمه
 ADMIN_LOGIN, MAIN_MENU, MANAGE_STUDENTS, MANAGE_TEACHERS, MANAGE_CATEGORIES, ADD_CATEGORY, ADD_STUDENT, ADD_TEACHER, EDIT_STUDENT, EDIT_TEACHER = range(10)
 
@@ -41,13 +83,13 @@ CATEGORY_MENU_KEYBOARD = [
 ]
 
 STUDENT_MENU_KEYBOARD = [
-    ["افزودن دانش‌آموز", "ویرایش دانش‌آموز", "حذف دانش‌آموز"],
-    ["بازگشت به منوی اصلی"]
+    ["افزودن دانش‌آموز", "ویرایش دانش‌آموز"],
+    ["حذف دانش‌آموز", "بازگشت به منوی اصلی"]
 ]
 
 TEACHER_MENU_KEYBOARD = [
-    ["افزودن معلم", "ویرایش معلم", "حذف معلم"],
-    ["بازگشت به منوی اصلی"]
+    ["افزودن معلم", "ویرایش معلم"],
+    ["حذف معلم", "بازگشت به منوی اصلی"]
 ]
 
 # شروع ربات
@@ -146,9 +188,6 @@ async def manage_students(update: Update, context: CallbackContext):
     if text == "افزودن دانش‌آموز":
         await update.message.reply_text("لطفاً اطلاعات دانش‌آموز (کد ملی:رمز عبور:نام:نام خانوادگی) را وارد کنید:")
         return ADD_STUDENT
-    elif text == "ویرایش دانش‌آموز":
-        await update.message.reply_text("لطفاً کد ملی دانش‌آموز را وارد کنید:")
-        return EDIT_STUDENT
     elif text == "بازگشت به منوی اصلی":
         return await main_menu(update, context)
     else:
@@ -158,14 +197,15 @@ async def manage_students(update: Update, context: CallbackContext):
         )
         return MANAGE_STUDENTS
 
-# افزودن دانش‌آموز
 async def add_student(update: Update, context: CallbackContext):
     try:
         national_code, password, first_name, last_name = update.message.text.split(":")
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-        cursor.execute("INSERT INTO students (national_code, password_hash, first_name, last_name) VALUES (%s, %s, %s, %s)", 
-                       (national_code, password_hash, first_name, last_name))
+        cursor.execute("""
+            INSERT INTO students (national_code, password_hash, first_name, last_name) 
+            VALUES (%s, %s, %s, %s)
+        """, (national_code, password_hash, first_name, last_name))
         conn.commit()
 
         await update.message.reply_text(f"دانش‌آموز {first_name} {last_name} با کد ملی {national_code} اضافه شد!")
@@ -175,39 +215,12 @@ async def add_student(update: Update, context: CallbackContext):
         await update.message.reply_text("خطا در افزودن دانش‌آموز. لطفاً دوباره تلاش کنید.")
         return ADD_STUDENT
 
-# ویرایش دانش‌آموز
-async def edit_student(update: Update, context: CallbackContext):
-    national_code = update.message.text.strip()
-    await update.message.reply_text(f"لطفاً اطلاعات جدید دانش‌آموز با کد ملی {national_code} را وارد کنید:\nفرمت: نام:نام خانوادگی:رمز عبور")
-    return EDIT_STUDENT
-
-# ویرایش اطلاعات دانش‌آموز
-async def edit_student_details(update: Update, context: CallbackContext):
-    try:
-        national_code, first_name, last_name, password = update.message.text.split(":")
-        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
-        cursor.execute("""
-            UPDATE students SET first_name = %s, last_name = %s, password_hash = %s WHERE national_code = %s
-        """, (first_name, last_name, password_hash, national_code))
-        conn.commit()
-
-        await update.message.reply_text(f"اطلاعات دانش‌آموز با کد ملی {national_code} ویرایش شد!")
-        return MANAGE_STUDENTS
-    except Exception as e:
-        logger.error(f"خطا در ویرایش دانش‌آموز: {e}")
-        await update.message.reply_text("خطا در ویرایش اطلاعات دانش‌آموز. لطفاً دوباره تلاش کنید.")
-        return EDIT_STUDENT
-
 # مدیریت معلمان
 async def manage_teachers(update: Update, context: CallbackContext):
     text = update.message.text
     if text == "افزودن معلم":
-        await update.message.reply_text("لطفاً اطلاعات معلم (کد ملی:رمز عبور:نام کاربری تلگرام:دسته‌بندی:نام:نام خانوادگی) را وارد کنید:")
+        await update.message.reply_text("لطفاً اطلاعات معلم (کد ملی:رمز عبور:نام:نام خانوادگی:دسته‌بندی) را وارد کنید:")
         return ADD_TEACHER
-    elif text == "ویرایش معلم":
-        await update.message.reply_text("لطفاً کد ملی معلم را وارد کنید:")
-        return EDIT_TEACHER
     elif text == "بازگشت به منوی اصلی":
         return await main_menu(update, context)
     else:
@@ -217,48 +230,23 @@ async def manage_teachers(update: Update, context: CallbackContext):
         )
         return MANAGE_TEACHERS
 
-# افزودن معلم
 async def add_teacher(update: Update, context: CallbackContext):
     try:
-        national_code, password, telegram_username, category, first_name, last_name = update.message.text.split(":")
+        national_code, password, first_name, last_name, category = update.message.text.split(":")
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-        cursor.execute("INSERT INTO teachers (national_code, password_hash, telegram_username, category, first_name, last_name) "
-                       "VALUES (%s, %s, %s, %s, %s, %s)", 
-                       (national_code, password_hash, telegram_username, category, first_name, last_name))
+        cursor.execute("""
+            INSERT INTO teachers (national_code, password_hash, first_name, last_name, category) 
+            VALUES (%s, %s, %s, %s, %s)
+        """, (national_code, password_hash, first_name, last_name, category))
         conn.commit()
 
-        await update.message.reply_text(f"معلم {first_name} {last_name} با کد ملی {national_code} و دسته‌بندی {category} اضافه شد!")
+        await update.message.reply_text(f"معلم {first_name} {last_name} با کد ملی {national_code} و دسته '{category}' اضافه شد!")
         return MANAGE_TEACHERS
     except Exception as e:
         logger.error(f"خطا در افزودن معلم: {e}")
         await update.message.reply_text("خطا در افزودن معلم. لطفاً دوباره تلاش کنید.")
         return ADD_TEACHER
-
-# ویرایش معلم
-async def edit_teacher(update: Update, context: CallbackContext):
-    national_code = update.message.text.strip()
-    await update.message.reply_text(f"لطفاً اطلاعات جدید معلم با کد ملی {national_code} را وارد کنید:\nفرمت: نام:نام خانوادگی:رمز عبور:نام کاربری تلگرام:دسته‌بندی")
-    return EDIT_TEACHER
-
-# ویرایش اطلاعات معلم
-async def edit_teacher_details(update: Update, context: CallbackContext):
-    try:
-        national_code, first_name, last_name, password, telegram_username, category = update.message.text.split(":")
-        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
-        cursor.execute("""
-            UPDATE teachers SET first_name = %s, last_name = %s, password_hash = %s, telegram_username = %s, category = %s 
-            WHERE national_code = %s
-        """, (first_name, last_name, password_hash, telegram_username, category, national_code))
-        conn.commit()
-
-        await update.message.reply_text(f"اطلاعات معلم با کد ملی {national_code} ویرایش شد!")
-        return MANAGE_TEACHERS
-    except Exception as e:
-        logger.error(f"خطا در ویرایش معلم: {e}")
-        await update.message.reply_text("خطا در ویرایش اطلاعات معلم. لطفاً دوباره تلاش کنید.")
-        return EDIT_TEACHER
 
 # مسیر مکالمه
 conv_handler = ConversationHandler(
@@ -270,8 +258,7 @@ conv_handler = ConversationHandler(
         ADD_CATEGORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_category)],
         MANAGE_STUDENTS: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_students)],
         ADD_STUDENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_student)],
-        EDIT_STUDENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_student)],
-        EDIT_TEACHER: [MessageHandler(filters.TEXT & ~filters.COMMAND, edit_teacher)],
+        MANAGE_TEACHERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, manage_teachers)],
         ADD_TEACHER: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_teacher)],
     },
     fallbacks=[CommandHandler("start", start)]

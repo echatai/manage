@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # اتصال به دیتابیس
 try:
-    conn = psycopg2.connect("postgresql://postgres:PTJAhLwZOXISnZwUQHSqMxqrAlZQYDWj@postgres.railway.internal:5432/railway")
+    conn = psycopg2.connect("postgresql://postgres:qRoPLmVAenZFFyNFjSicmBKMDSIFIqAa@postgres.railway.internal:5432/railway")
     cursor = conn.cursor()
     logger.info("اتصال به دیتابیس برقرار شد.")
 except Exception as e:

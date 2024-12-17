@@ -68,8 +68,7 @@ def create_tables_if_not_exists():
         logger.error(f"خطا در ایجاد جداول: {e}")
         conn.rollback()
 
-# فراخوانی تابع برای ایجاد جداول در صورت عدم وجود
-create_tables_if_not_exists()  # فراخوانی تابع در ابتدای اجرا
+
 
 # مراحل مکالمه
 ADMIN_LOGIN, MAIN_MENU, MANAGE_STUDENTS, MANAGE_TEACHERS, MANAGE_CATEGORIES, ADD_CATEGORY, ADD_STUDENT, ADD_TEACHER, EDIT_STUDENT, EDIT_TEACHER = range(10)

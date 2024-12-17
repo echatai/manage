@@ -1,11 +1,23 @@
+import logging
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackContext, ConversationHandler, filters
 import psycopg2
 import bcrypt
 
+# تنظیمات لاگ‌گیری
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
 # اتصال به دیتابیس
-conn = psycopg2.connect("postgresql://postgres:WwsdWwGXSFWbTbcyRvSchqpltUXOCTVZ@postgres.railway.internal:5432/railway")
-cursor = conn.cursor()
+try:
+    conn = psycopg2.connect("postgresql://postgres:WwsdWwGXSFWbTbcyRvSchqpltUXOCTVZ@postgres.railway.internal:5432/railway")
+    cursor = conn.cursor()
+    logger.info("اتصال به دیتابیس برقرار شد.")
+except Exception as e:
+    logger.error(f"خطا در اتصال به دیتابیس: {e}")
 
 # مراحل مکالمه
 ADMIN_LOGIN, MAIN_MENU, MANAGE_STUDENTS, MANAGE_TEACHERS, MANAGE_CATEGORIES = range(5)
@@ -24,6 +36,7 @@ MAIN_MENU_KEYBOARD = [
 
 # شروع ربات
 async def start(update: Update, context: CallbackContext):
+    logger.info(f"کاربر {update.effective_user.id} /start را اجرا کرد.")
     await update.message.reply_text(
         "لطفاً نام کاربری و رمز عبور ادمین را به صورت زیر وارد کنید:\n\nنام کاربری:رمز عبور"
     )
@@ -32,22 +45,27 @@ async def start(update: Update, context: CallbackContext):
 # ورود ادمین
 async def admin_login(update: Update, context: CallbackContext):
     try:
+        logger.info(f"ورودی دریافت شده برای ورود ادمین: {update.message.text}")
         username, password = update.message.text.split(":")
         if username == ADMIN_CREDENTIALS["username"] and bcrypt.checkpw(password.encode(), ADMIN_CREDENTIALS["password"].encode()):
+            logger.info(f"ورود موفق برای کاربر {update.effective_user.id}.")
             await update.message.reply_text(
                 "ورود موفقیت‌آمیز بود! لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
                 reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, one_time_keyboard=True)
             )
             return MAIN_MENU
         else:
+            logger.warning(f"ورود ناموفق برای کاربر {update.effective_user.id}.")
             await update.message.reply_text("نام کاربری یا رمز عبور اشتباه است. لطفاً دوباره تلاش کنید.")
-    except ValueError:
+    except ValueError as e:
+        logger.error(f"خطای فرمت ورودی: {e}")
         await update.message.reply_text("فرمت ورودی اشتباه است. لطفاً به شکل نام کاربری:رمز عبور وارد کنید.")
     return ADMIN_LOGIN
 
 # منوی اصلی
 async def main_menu(update: Update, context: CallbackContext):
     text = update.message.text
+    logger.info(f"ورودی در منوی اصلی از کاربر {update.effective_user.id}: {text}")
     if text == "مدیریت دانش‌آموزان":
         return await manage_students_menu(update, context)
     elif text == "مدیریت معلمان":
@@ -55,9 +73,11 @@ async def main_menu(update: Update, context: CallbackContext):
     elif text == "مدیریت دسته‌ها":
         return await manage_categories_menu(update, context)
     elif text == "خروج":
+        logger.info(f"کاربر {update.effective_user.id} از ربات خارج شد.")
         await update.message.reply_text("خداحافظ!")
         return ConversationHandler.END
     else:
+        logger.warning(f"گزینه نامعتبر در منوی اصلی: {text}")
         await update.message.reply_text(
             "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
             reply_markup=ReplyKeyboardMarkup(MAIN_MENU_KEYBOARD, one_time_keyboard=True)
@@ -66,6 +86,7 @@ async def main_menu(update: Update, context: CallbackContext):
 
 # مدیریت دانش‌آموزان
 async def manage_students_menu(update: Update, context: CallbackContext):
+    logger.info(f"ورود به منوی مدیریت دانش‌آموزان توسط کاربر {update.effective_user.id}")
     await update.message.reply_text(
         "لطفاً یکی از عملیات زیر را انتخاب کنید:",
         reply_markup=ReplyKeyboardMarkup([
@@ -77,6 +98,7 @@ async def manage_students_menu(update: Update, context: CallbackContext):
 
 async def manage_students(update: Update, context: CallbackContext):
     text = update.message.text
+    logger.info(f"عملیات در مدیریت دانش‌آموزان: {text} توسط کاربر {update.effective_user.id}")
     if text == "افزودن دانش‌آموز":
         await update.message.reply_text("لطفاً اطلاعات دانش‌آموز را به شکل زیر وارد کنید:\n\nکد ملی:رمز عبور")
     elif text == "ویرایش دانش‌آموز":
@@ -89,6 +111,7 @@ async def manage_students(update: Update, context: CallbackContext):
 
 # مدیریت معلمان
 async def manage_teachers_menu(update: Update, context: CallbackContext):
+    logger.info(f"ورود به منوی مدیریت معلمان توسط کاربر {update.effective_user.id}")
     await update.message.reply_text(
         "لطفاً یکی از عملیات زیر را انتخاب کنید:",
         reply_markup=ReplyKeyboardMarkup([
@@ -100,6 +123,7 @@ async def manage_teachers_menu(update: Update, context: CallbackContext):
 
 async def manage_teachers(update: Update, context: CallbackContext):
     text = update.message.text
+    logger.info(f"عملیات در مدیریت معلمان: {text} توسط کاربر {update.effective_user.id}")
     if text == "افزودن معلم":
         await update.message.reply_text("لطفاً اطلاعات معلم را به شکل زیر وارد کنید:\n\nکد ملی:رمز عبور:دسته‌بندی")
     elif text == "ویرایش معلم":
@@ -112,6 +136,7 @@ async def manage_teachers(update: Update, context: CallbackContext):
 
 # مدیریت دسته‌ها
 async def manage_categories_menu(update: Update, context: CallbackContext):
+    logger.info(f"ورود به منوی مدیریت دسته‌ها توسط کاربر {update.effective_user.id}")
     await update.message.reply_text(
         "لطفاً یکی از عملیات زیر را انتخاب کنید:",
         reply_markup=ReplyKeyboardMarkup([
@@ -123,6 +148,7 @@ async def manage_categories_menu(update: Update, context: CallbackContext):
 
 async def manage_categories(update: Update, context: CallbackContext):
     text = update.message.text
+    logger.info(f"عملیات در مدیریت دسته‌ها: {text} توسط کاربر {update.effective_user.id}")
     if text == "افزودن دسته":
         await update.message.reply_text("لطفاً نام دسته‌ای که می‌خواهید اضافه کنید را وارد کنید:")
     elif text == "ویرایش دسته":

@@ -173,8 +173,8 @@ async def manage_categories(update: Update, context: CallbackContext):
 async def add_category(update: Update, context: CallbackContext):
     category_name = update.message.text.strip()
     if not category_name:
-        await update.message.reply_text("نام دسته نمی‌تواند خالی باشد. لطفاً دوباره وارد کنید:")
-        return ADD_CATEGORY
+        await update.message.reply_text("نام دسته نمی‌تواند خالی باشد. لطفاً دوباره تلاش کنید :")
+        return MANAGE_CATEGORIES
     try:
         cursor.execute("INSERT INTO categories (name) VALUES (%s)", (category_name,))
         conn.commit()
@@ -245,7 +245,7 @@ async def manage_teachers(update: Update, context: CallbackContext):
         return await main_menu(update, context)
     else:
         await update.message.reply_text(
-            "گزینه نامعتبر. لطفاً یکی از عملیات زیر را انتخاب کنید:",
+           
             reply_markup=ReplyKeyboardMarkup(TEACHER_MENU_KEYBOARD, one_time_keyboard=True)
         )
         return MANAGE_TEACHERS
@@ -283,7 +283,7 @@ async def add_student(update: Update, context: CallbackContext):
     student_info = update.message.text.strip().split(":")
     if len(student_info) != 4:
         await update.message.reply_text("فرمت ورودی اشتباه است. لطفاً به شکل کد ملی:رمز عبور:نام:نام خانوادگی وارد کنید.")
-        return ADD_STUDENT
+        return MANAGE_STUDENTS
 
     national_code, password, first_name, last_name = student_info
     try:
@@ -304,7 +304,7 @@ async def add_teacher(update: Update, context: CallbackContext):
     teacher_info = update.message.text.strip().split(":")
     if len(teacher_info) != 5:
         await update.message.reply_text("فرمت ورودی اشتباه است. لطفاً به شکل کد ملی:رمز عبور:نام:نام خانوادگی:دسته‌بندی وارد کنید.")
-        return ADD_TEACHER
+        return MANAGE_TEACHERS
 
     national_code, password, first_name, last_name, category = teacher_info
     try:
@@ -330,7 +330,7 @@ async def edit_student(update: Update, context: CallbackContext):
     
     student_list = "\n".join([f"{student[0]}: {student[1]} {student[2]}" for student in students])
     await update.message.reply_text(f"لیست دانش‌آموزان:\n{student_list}\n\nلطفاً شناسه دانش‌آموز مورد نظر را وارد کنید:")
-    return EDIT_STUDENT
+    return MANAGE_STUDENTS
 
 async def confirm_edit_student(update: Update, context: CallbackContext):
     student_id = update.message.text.strip()
@@ -358,7 +358,7 @@ async def edit_teacher(update: Update, context: CallbackContext):
     
     teacher_list = "\n".join([f"{teacher[0]}: {teacher[1]} {teacher[2]}" for teacher in teachers])
     await update.message.reply_text(f"لیست معلمان:\n{teacher_list}\n\nلطفاً شناسه معلم مورد نظر را وارد کنید:")
-    return EDIT_TEACHER
+    return MANAGE_TEACHERS
 
 async def confirm_edit_teacher(update: Update, context: CallbackContext):
     teacher_id = update.message.text.strip()
